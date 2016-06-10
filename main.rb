@@ -87,12 +87,9 @@ class Mips
    end
 
    def solve_hazards
-      if @exs.instruction.name == :beq # Control hazard.
-         if @exs.alu_out == 0
-            @ids.instruction = Instruction.new
+      if @ids.instruction.name == :beq && @ids.read_data_1 ^ @ids.read_data_2 == 0 # Control hazard.
             @ifs.instruction = '0' * 32
-            @ifs.pc = @exs.instruction.pc + @exs.instruction.imm * 4
-         end
+            @ifs.pc = @ids.pc + @ids.instruction.imm * 4
       end
       unless @mems.instruction.empty? || @mems.instruction.name == :beq # Data hazard solved by forwarding from MEM/WB to ID/EX.
          wr = @mems.instruction.type == :R ? @mems.instruction.rd : @mems.instruction.rt
@@ -183,7 +180,7 @@ class Mips
 
    class IDs
 
-      attr_accessor :read_data_1, :read_data_2, :sign_ext, :instruction
+      attr_accessor :read_data_1, :read_data_2, :sign_ext, :instruction, :pc
 
       def initialize mips
          @mips = mips
@@ -192,7 +189,8 @@ class Mips
       end
       
       def process
-         @instruction = Instruction.new @mips.ifs.instruction, @mips.ifs.pc
+         @instruction = Instruction.new @mips.ifs.instruction
+         @pc = @mips.ifs.pc
          if @instruction.empty?
             @read_data_1 = @read_data_2 = @sign_ext = 0
             false
@@ -309,10 +307,9 @@ class Mips
 
    class Instruction
 
-      attr_accessor :raw, :type, :name, :rs, :rt, :rd, :imm, :control_signals, :pc
+      attr_accessor :raw, :type, :name, :rs, :rt, :rd, :imm, :control_signals
 
-      def initialize raw = '0' * 32, pc = 0
-         @pc = pc
+      def initialize raw = '0' * 32
          @raw = raw
          if raw.nil? || raw == '0' * 32
             @empty = true
